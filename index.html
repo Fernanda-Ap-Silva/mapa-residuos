@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Mapa de Pontos de Coleta de Resíduos – Uberlândia</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+    }
+    h2 {
+      text-align: center;
+      margin: 10px 0;
+      color: #333;
+    }
+    #map {
+      height: 85vh;
+      width: 100%;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      padding: 12px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .controls b {
+      display: block;
+      margin-bottom: 5px;
+      color: #555;
+    }
+    .controls input {
+      margin-right: 5px;
+    }
+    .legend {
+      background: rgba(255,255,255,0.95);
+      padding: 10px 12px;
+      line-height: 1.6;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .legend img {
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Mapa de Pontos de Coleta de Resíduos em Uberlândia</h2>
+  <div class="controls">
+    <b>Filtrar por tipo de resíduo:</b>
+    <label><input type="checkbox" id="pilhas" checked> Pilhas</label><br>
+    <label><input type="checkbox" id="oleo" checked> Óleo de Cozinha</label><br>
+    <label><input type="checkbox" id="eletronicos" checked> Eletrônicos</label><br>
+    <label><input type="checkbox" id="lampadas" checked> Lâmpadas</label><br>
+    <label><input type="checkbox" id="geral" checked> Geral</label>
+  </div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script>
+    var map = L.map('map', {
+      zoomControl: false
+    }).setView([-18.915, -48.277], 13);
+
+    // Reposiciona os botões de zoom
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var icons = {
+      pilhas: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2910/2910760.png', iconSize: [28, 28] }),
+      oleo: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/135/135763.png', iconSize: [28, 28] }),
+      eletronicos: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1041/1041916.png', iconSize: [28, 28] }), // ícone corrigido
+      lampadas: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png', iconSize: [28, 28] }),
+      geral: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/565/565547.png', iconSize: [28, 28] })
+    };
+
+    var coresCluster = {
+      pilhas: '#e74c3c',
+      oleo: '#e67e22',
+      eletronicos: '#3498db',
+      lampadas: '#f1c40f',
+      geral: '#2ecc71'
+    };
+
+    var pontos = [
+      {lat:-18.9153, lon:-48.2775, tipo:'pilhas', nome:'Assaí – Av. Rondon Pacheco, 755', link:'https://www.assai.com.br/'},
+      {lat:-18.9225, lon:-48.2827, tipo:'oleo', nome:'Pão de Açúcar – Av. Nicomedes, 2222', link:'https://www.paodeacucar.com/'},
+      {lat:-18.9360, lon:-48.2750, tipo:'eletronicos', nome:'Codel Reciclagem – Rua Ituiutaba, 470', link:'https://codelreciclagem.com.br/'},
+      {lat:-18.9182, lon:-48.2887, tipo:'geral', nome:'DMAE – Av. Rondon Pacheco, 6400', link:'https://www.uberlandia.mg.gov.br/dmae'},
+      {lat:-18.9128, lon:-48.2730, tipo:'lampadas', nome:'Bretas – Av. Floriano Peixoto, 1419', link:'https://www.bretas.com.br/'},
+      {lat:-18.9125, lon:-48.2720, tipo:'geral', nome:'Magazine Luiza Cup Center Shopping – Av. João Naves, 1331', link:'https://www.magazineluiza.com.br/'}
+    ];
+
+    var clusterGroup = L.markerClusterGroup({
+      iconCreateFunction: function(cluster){
+        var markers = cluster.getAllChildMarkers();
+        var count = {pilhas:0, oleo:0, eletronicos:0, lampadas:0, geral:0};
+        markers.forEach(m => count[m.options.tipo]++);
+        var tipoPred = Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b);
+        var cor = coresCluster[tipoPred];
+        return L.divIcon({
+          html:'<div style="background:'+cor+'; border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; color:#fff; font-weight:bold;">'+markers.length+'</div>',
+          className:'marker-cluster',
+          iconSize:L.point(32,32)
+        });
+      }
+    });
+
+    function criarMarcadores(){
+      clusterGroup.clearLayers();
+      var tiposSelecionados = ['pilhas','oleo','eletronicos','lampadas','geral'].filter(t=>document.getElementById(t).checked);
+      pontos.forEach(p=>{
+        if(tiposSelecionados.includes(p.tipo)){
+          var marker = L.marker([p.lat, p.lon], {icon:icons[p.tipo], tipo:p.tipo})
+            .bindPopup('<b>'+p.nome+'</b><br>Tipo: '+p.tipo+'<br><a href="'+p.link+'" target="_blank">Visitar site/contato</a>');
+          clusterGroup.addLayer(marker);
+        }
+      });
+    }
+
+    criarMarcadores();
+    map.addLayer(clusterGroup);
+
+    ['pilhas','oleo','eletronicos','lampadas','geral'].forEach(t=>{
+      document.getElementById(t).addEventListener('change', criarMarcadores);
+    });
+
+    var legend = L.control({position:'bottomright'});
+    legend.onAdd = function(map){
+      var div = L.DomUtil.create('div','legend');
+      div.innerHTML+='<b>Tipos de Resíduos</b><br>';
+      for(var key in icons){
+        div.innerHTML+='<img src="'+icons[key].options.iconUrl+'" width="22" height="22"> '+key+'<br>';
+      }
+      return div;
+    };
+    legend.addTo(map);
+  </script>
+</body>
+</html>
+
